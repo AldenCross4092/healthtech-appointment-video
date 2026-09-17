@@ -1,0 +1,12 @@
+{
+  "name": "healthtech-video-room",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/appointment-session.ts",
+    "test": "tsx src/appointment-session.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "zod": "^3.23.8" },
+  "devDependencies": { "tsx": "^4.19.0", "typescript": "^5.6.3" }
+}
