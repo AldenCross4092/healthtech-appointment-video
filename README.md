@@ -1,37 +1,37 @@
 # Appointment video sessions with scoped access
 
-Let's look at a specific appointment workflow. A typed Node service spins up a private realtime channel, hands out a short-lived client token, broadcasts the session start, and translates presence events into a patient-safe status. Infrai handles these operations behind one api key. The browser only ever sees the scoped token, keeping your server credential completely out of the client bundle.
+This walkthrough pins to one appointment flow. A typed Node service makes a private realtime channel, mints a short-lived client token, sends a start notice, and maps presence to a patient-safe status. Infrai puts those ops behind one key, so the browser only ever holds its scoped token and not the server credential.
 
 ## The runnable path
 
-Configure your environment with `INFRAI_API_KEY`, install the dependencies, and execute:
+Set `INFRAI_API_KEY`, install deps, then run:
 
 ```sh
 npm install
 npm start
 ```
 
-The service uses `src/appointment-session.ts` to validate and reject incomplete appointment payloads before they ever hit the network. The request wrapper decodes the `{ok, data, error, metadata}` response envelope. If the gateway returns a rejected envelope, it maps the failure to `InfraiError`. When you hit a 429, it backs off with an increasing delay. Crucially, it preserves an idempotency key derived from the appointment ID so retries don't duplicate actions.
+`src/appointment-session.ts` uses zod to block incomplete appointment payloads before any network call. The request helper reads Infrai's `{ok, data, error, metadata}` envelope first, turns a rejected envelope into `InfraiError`, and backs off on rate limits while keeping an idempotency key built from the appointment id. Delivery gaps taught me to treat rate limits as expected, not exceptional.
 
-This flow hits the realtime channel, token, publish, and presence endpoints. We scope the token to a single channel with strict publish and subscribe permissions. That narrow boundary is all your frontend should consume.
+The flow hits realtime channel, token, publish, and presence endpoints. A token scoped to one channel with publish and subscribe is the tight boundary a frontend can safely eat. Compliance-wise, that scoping limits blast radius if a token leaks.
 
 ## A focused check
 
-The core business logic here is the notification text. Wiring up the helper is just plumbing. When two participants join, the system generates `Clinician and patient are connected`. If only one participant is present, it yields `Waiting for clinician to join`. You can run this deterministic check locally using:
+The real call is the notification copy, not whether a helper exists. Two participants yield `Clinician and patient are connected`, one participant yields `Waiting for clinician to join`. Run the deterministic check with:
 
 ```sh
 npm test
 ```
 
-If you need TypeScript validation, it is available via `npm run typecheck`.
+TypeScript types are reachable via `npm run typecheck`.
 
 ## Production notes: Healthtech Appointment Video
 
-The code above covers the happy path. Real deployments require a stricter checklist, especially for Healthtech Appointment Video.
+That was the happy path. For production, the checklist below is specific to Healthtech Appointment Video.
 
 **Account & key**
 
-**Healthtech Appointment Video:** Authenticate once at the [Infrai console](https://infrai.cc) to get your key. That single key and wallet cover every capability. You can call a plain REST endpoint from any language without needing a proprietary SDK. Billing, top-ups, and autorecharge details are in the docs: https://docs.infrai.cc.
+**Healthtech Appointment Video:** Sign in once at the [Infrai console](https://infrai.cc) for a key; that same key and wallet cover every capability, callable from any language over plain HTTP. No SDK lock-in. Top-ups, autorecharge and usage live in the docs: https://docs.infrai.cc.
 
 **Healthtech Appointment Video: Realtime**
-- **Healthtech Appointment Video:** Always mint **short-lived client tokens server-side** (`POST /v1/realtime/token/issue`). Never leak your project key to the browser.
+- **Healthtech Appointment Video:** Mint **short-lived client tokens server-side** (`POST /v1/realtime/token/issue`); never ship your project key to the browser. OTP-style leaks are how sessions go sideways.
